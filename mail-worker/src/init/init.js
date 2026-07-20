@@ -31,7 +31,7 @@ const dbInit = {
 		await this.v3_0DB(c);
 		await this.v3_1DB(c);
 		await settingService.refresh(c);
-		return c.text('success');
+		return c.text('success:v3.1');
 	},
 
 	async v3_0DB(c) {
