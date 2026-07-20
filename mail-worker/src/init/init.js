@@ -29,6 +29,7 @@ const dbInit = {
 		await this.v2_8DB(c);
 		await this.v2_9DB(c);
 		await this.v3_0DB(c);
+		await this.v3_1DB(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
@@ -54,6 +55,61 @@ const dbInit = {
 			console.warn(`跳过字段：${e.message}`);
 		}
 
+	},
+
+	async v3_1DB(c) {
+		const columnSql = [
+			`ALTER TABLE email ADD COLUMN is_spam INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN spam_enabled INTEGER NOT NULL DEFAULT 0;`,
+			`ALTER TABLE setting ADD COLUMN spam_threshold INTEGER NOT NULL DEFAULT 5;`,
+			`ALTER TABLE setting ADD COLUMN spam_cf_is_spam INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN spam_spf_softfail INTEGER NOT NULL DEFAULT 2;`,
+			`ALTER TABLE setting ADD COLUMN spam_spf_none INTEGER NOT NULL DEFAULT 2;`,
+			`ALTER TABLE setting ADD COLUMN spam_spf_fail INTEGER NOT NULL DEFAULT 4;`,
+			`ALTER TABLE setting ADD COLUMN spam_dkim_none INTEGER NOT NULL DEFAULT 2;`,
+			`ALTER TABLE setting ADD COLUMN spam_dkim_fail INTEGER NOT NULL DEFAULT 4;`,
+			`ALTER TABLE setting ADD COLUMN spam_dmarc_none INTEGER NOT NULL DEFAULT 2;`,
+			`ALTER TABLE setting ADD COLUMN spam_dmarc_fail INTEGER NOT NULL DEFAULT 4;`
+		];
+		for (const statement of columnSql) {
+			try { await c.env.db.prepare(statement).run(); } catch (e) { console.warn(`skip spam setting column: ${e.message}`); }
+		}
+		await c.env.db.batch([
+			c.env.db.prepare(`CREATE TABLE IF NOT EXISTS telegram_forum_config (
+				id INTEGER PRIMARY KEY CHECK (id = 1), enabled INTEGER NOT NULL DEFAULT 0,
+				chat_id TEXT NOT NULL DEFAULT '', default_normal_thread_id INTEGER NOT NULL DEFAULT 0,
+				default_spam_thread_id INTEGER NOT NULL DEFAULT 0, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)`),
+			c.env.db.prepare(`INSERT OR IGNORE INTO telegram_forum_config (id) VALUES (1)`),
+			c.env.db.prepare(`CREATE TABLE IF NOT EXISTS telegram_recipient_route (
+				route_id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+				normal_thread_id INTEGER NOT NULL DEFAULT 0, spam_thread_id INTEGER NOT NULL DEFAULT 0,
+				enabled INTEGER NOT NULL DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)`),
+			c.env.db.prepare(`CREATE TABLE IF NOT EXISTS cloudflare_email_zone (
+				id INTEGER PRIMARY KEY AUTOINCREMENT, domain TEXT NOT NULL COLLATE NOCASE UNIQUE,
+				cloudflare_zone_id TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, last_polled_at DATETIME
+			)`),
+			c.env.db.prepare(`CREATE TABLE IF NOT EXISTS email_spam_classification (
+				email_id INTEGER PRIMARY KEY, state TEXT NOT NULL DEFAULT 'pending', is_spam INTEGER NOT NULL DEFAULT 0,
+				provisional INTEGER NOT NULL DEFAULT 0, score INTEGER NOT NULL DEFAULT 0, reasons TEXT NOT NULL DEFAULT '[]',
+				spf TEXT, dkim TEXT, dmarc TEXT, cloudflare_is_spam INTEGER, cloudflare_event_at DATETIME,
+				next_retry_at DATETIME, classified_at DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)`),
+			c.env.db.prepare(`CREATE TABLE IF NOT EXISTS telegram_delivery (
+				delivery_id INTEGER PRIMARY KEY AUTOINCREMENT, email_id INTEGER NOT NULL, kind TEXT NOT NULL,
+				chat_id TEXT NOT NULL, thread_id INTEGER NOT NULL, telegram_message_id INTEGER,
+				state TEXT NOT NULL DEFAULT 'sent', last_error TEXT NOT NULL DEFAULT '',
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP, deleted_at DATETIME
+			)`),
+			c.env.db.prepare(`DROP INDEX IF EXISTS idx_tg_delivery_active`),
+			c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_tg_delivery_active ON telegram_delivery(email_id, kind)`),
+			c.env.db.prepare(`CREATE TABLE IF NOT EXISTS spam_sender_rule (
+				rule_id INTEGER PRIMARY KEY AUTOINCREMENT, match_type TEXT NOT NULL, value TEXT NOT NULL COLLATE NOCASE,
+				action TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+			)`),
+			c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_spam_classification_state ON email_spam_classification(state, created_at)`)
+		]);
 	},
 
 	async v2_9DB(c) {

@@ -22,18 +22,20 @@ import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
 import { att } from '../entity/att';
 import telegramService from './telegram-service';
+import { emailSpamClassification } from '../entity/telegram-forum';
 
 const emailService = {
 
 	async list(c, params, userId) {
 
-		let { emailId, type, accountId, size, timeSort, allReceive } = params;
+		let { emailId, type, accountId, size, timeSort, allReceive, spam } = params;
 
 		size = Number(size);
 		emailId = Number(emailId);
 		timeSort = Number(timeSort);
 		accountId = Number(accountId);
 		allReceive = Number(allReceive);
+		spam = Number(spam);
 
 		if (size > 50) {
 			size = 50;
@@ -76,6 +78,7 @@ const emailService = {
 					eq(email.userId, userId),
 					timeSort ? gt(email.emailId, emailId) : lt(email.emailId, emailId),
 					eq(email.type, type),
+					spam ? eq(email.isSpam, 1) : eq(email.isSpam, 0),
 					eq(email.isDel, isDel.NORMAL),
 					eq(account.isDel, isDel.NORMAL)
 				)
@@ -99,6 +102,7 @@ const emailService = {
 					allReceive ? eq(1,1) : eq(email.accountId, accountId),
 					eq(email.userId, userId),
 					eq(email.type, type),
+					spam ? eq(email.isSpam, 1) : eq(email.isSpam, 0),
 					eq(email.isDel, isDel.NORMAL),
 					eq(account.isDel, isDel.NORMAL)
 				)
@@ -109,6 +113,7 @@ const emailService = {
 				allReceive ? eq(1,1) : eq(email.accountId, accountId),
 				eq(email.userId, userId),
 				eq(email.type, type),
+				spam ? eq(email.isSpam, 1) : eq(email.isSpam, 0),
 				eq(email.isDel, isDel.NORMAL)
 			))
 			.orderBy(desc(email.emailId)).limit(1).get();
@@ -810,6 +815,10 @@ const emailService = {
 			conditions.push(eq(email.status, emailConst.status.NOONE));
 		}
 
+		if (type === 'spam') {
+			conditions.push(eq(email.isSpam, 1));
+		}
+
 		if (userEmail) {
 			conditions.push(sql`${user.email} COLLATE NOCASE LIKE ${'%'+ userEmail + '%'}`);
 		}
@@ -841,9 +850,21 @@ const emailService = {
 			conditions.unshift(lt(email.emailId, emailId));
 		}
 
-		const query = orm(c).select({ ...email, userEmail: user.email })
+		const query = orm(c).select({
+			...email,
+			userEmail: user.email,
+			spamState: emailSpamClassification.state,
+			spamScore: emailSpamClassification.score,
+			spamReasons: emailSpamClassification.reasons,
+			spamSpf: emailSpamClassification.spf,
+			spamDkim: emailSpamClassification.dkim,
+			spamDmarc: emailSpamClassification.dmarc,
+			spamCloudflareEventAt: emailSpamClassification.cloudflareEventAt,
+			telegramDeliveryState: sql`(SELECT state FROM telegram_delivery td WHERE td.email_id = ${email.emailId} ORDER BY td.delivery_id DESC LIMIT 1)`
+		})
 			.from(email)
 			.leftJoin(user, eq(email.userId, user.userId))
+			.leftJoin(emailSpamClassification, eq(emailSpamClassification.emailId, email.emailId))
 			.where(and(...conditions));
 
 		const queryCount = orm(c).select({ total: count() })

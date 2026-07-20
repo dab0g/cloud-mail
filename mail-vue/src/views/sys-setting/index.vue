@@ -258,6 +258,10 @@
                 </div>
               </div>
               <div class="setting-item">
+                <div><span>Telegram forum routing & spam</span></div>
+                <div class="forward"><ForumRoutingSettings /></div>
+              </div>
+              <div class="setting-item">
                 <div><span>{{ $t('otherEmail') }}</span></div>
                 <div class="forward">
                   <span>{{ setting.forwardStatus === 0 ? $t('enabled') : $t('disabled') }}</span>
@@ -820,6 +824,7 @@ import {getTextWidth} from "@/utils/text.js";
 import {fileToBase64} from "@/utils/file-utils.js"
 import {useI18n} from 'vue-i18n';
 import axios from "axios";
+import ForumRoutingSettings from '@/components/forum-routing-settings/index.vue';
 
 defineOptions({
   name: 'sys-setting'

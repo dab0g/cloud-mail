@@ -32,6 +32,7 @@ jobs:
       LINUXDO_CLIENT_SECRET: ${{ secrets.LINUXDO_CLIENT_SECRET || vars.LINUXDO_CLIENT_SECRET }}
       LINUXDO_CALLBACK_URL: ${{ secrets.LINUXDO_CALLBACK_URL || vars.LINUXDO_CALLBACK_URL }}
       LINUXDO_SWITCH: ${{ secrets.LINUXDO_SWITCH || vars.LINUXDO_SWITCH }}
+      CF_EMAIL_ANALYTICS_TOKEN: ${{ secrets.CF_EMAIL_ANALYTICS_TOKEN }}
 
 
     outputs:
@@ -239,6 +240,12 @@ jobs:
           
           echo "worker_url=$WORKER_URL" >> $GITHUB_OUTPUT
           echo "✅ Setup completed."
+
+      - name: 🔐 Set Email Analytics secret
+        if: ${{ env.CF_EMAIL_ANALYTICS_TOKEN != '' }}
+        working-directory: ./mail-worker
+        run: |
+          printf '%s' "$CF_EMAIL_ANALYTICS_TOKEN" | pnpm wrangler secret put CF_EMAIL_ANALYTICS_TOKEN -c wrangler-action.toml
 
       - name: ♻️ 初始化数据库 / Initialize database
         run: |

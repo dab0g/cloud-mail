@@ -11,6 +11,8 @@ import roleService from '../service/role-service';
 import userService from '../service/user-service';
 import telegramService from '../service/telegram-service';
 import aiService from '../service/ai-service';
+import forumService from '../service/forum-service';
+import spamService from '../service/spam-service';
 
 export async function email(message, env, ctx) {
 
@@ -145,25 +147,17 @@ export async function email(message, env, ctx) {
 		}
 
 		emailRow = await emailService.completeReceive({ env }, account ? emailConst.status.RECEIVE : emailConst.status.NOONE, emailRow.emailId);
+		const forumEnabled = await forumService.isEnabled({ env });
+		if (forumEnabled) await spamService.createPending({ env }, emailRow.emailId);
 
+		const legacyForwardAllowed = ruleType !== settingConst.ruleType.RULE || ruleEmail.split(',').includes(message.to);
 
-		if (ruleType === settingConst.ruleType.RULE) {
-
-			const emails = ruleEmail.split(',');
-
-			if (!emails.includes(message.to)) {
-				return;
-			}
-
-		}
-
-		//转发到TG
-		if (tgBotStatus === settingConst.tgBotStatus.OPEN && tgChatId) {
+		// The old recipient rule remains a gate for legacy destinations only.
+		if (legacyForwardAllowed && !forumEnabled && tgBotStatus === settingConst.tgBotStatus.OPEN && tgChatId) {
 			await telegramService.sendEmailToBot({ env }, emailRow)
 		}
 
-		//转发到其他邮箱
-		if (forwardStatus === settingConst.forwardStatus.OPEN && forwardEmail) {
+		if (legacyForwardAllowed && forwardStatus === settingConst.forwardStatus.OPEN && forwardEmail) {
 
 			const emails = forwardEmail.split(',');
 

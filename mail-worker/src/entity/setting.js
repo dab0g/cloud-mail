@@ -51,6 +51,16 @@ export const setting = sqliteTable('setting', {
 	blackContent: text('black_content').default('').notNull(),
 	blackFrom: text('black_from').default('').notNull(),
 	aiCode: integer('ai_code').default(1).notNull(),
-	aiCodeFilter: text('ai_code_filter').default('').notNull()
+	aiCodeFilter: text('ai_code_filter').default('').notNull(),
+	spamEnabled: integer('spam_enabled').default(0).notNull(),
+	spamThreshold: integer('spam_threshold').default(5).notNull(),
+	spamCfIsSpam: integer('spam_cf_is_spam').default(1).notNull(),
+	spamSpfSoftfail: integer('spam_spf_softfail').default(2).notNull(),
+	spamSpfNone: integer('spam_spf_none').default(2).notNull(),
+	spamSpfFail: integer('spam_spf_fail').default(4).notNull(),
+	spamDkimNone: integer('spam_dkim_none').default(2).notNull(),
+	spamDkimFail: integer('spam_dkim_fail').default(4).notNull(),
+	spamDmarcNone: integer('spam_dmarc_none').default(2).notNull(),
+	spamDmarcFail: integer('spam_dmarc_fail').default(4).notNull()
 });
 export default setting

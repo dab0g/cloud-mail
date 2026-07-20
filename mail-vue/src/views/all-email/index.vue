@@ -18,6 +18,12 @@
                  :type="'all-email'"
 
     >
+      <template #subject="{ email }">
+        <span>{{ email.subject || '\u200B' }}</span>
+        <small v-if="email.spamState" class="spam-meta">
+          {{ email.spamState }} · score {{ email.spamScore }} · SPF {{ email.spamSpf || '-' }} / DKIM {{ email.spamDkim || '-' }} / DMARC {{ email.spamDmarc || '-' }} · Telegram {{ email.telegramDeliveryState || 'pending' }}
+        </small>
+      </template>
       <template #first>
         <el-input
             v-model="searchValue"
@@ -50,6 +56,7 @@
           <el-option key="2" :label="$t('sent')" value="send"/>
           <el-option key="4" :label="$t('selectDeleted')" value="delete"/>
           <el-option key="4" :label="$t('noRecipientTitle')" value="noone"/>
+          <el-option key="5" label="Spam" value="spam"/>
         </el-select>
         <Icon class="icon" icon="iconoir:search" @click="search" width="20" height="20"/>
         <Icon class="icon" @click="changeTimeSort" icon="material-symbols-light:timer-arrow-down-outline"
@@ -395,6 +402,12 @@ async function latest() {
   height: 100%;
   width: 100%;
   overflow: hidden;
+}
+
+.spam-meta {
+  margin-left: 8px;
+  color: var(--el-color-warning);
+  font-size: 11px;
 }
 
 

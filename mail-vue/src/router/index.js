@@ -51,6 +51,12 @@ const routes = [
                     menu: true
                 }
             },
+            {
+                path: '/spam',
+                name: 'spam',
+                component: () => import('@/views/spam/index.vue'),
+                meta: { title: 'spam', name: 'spam', menu: true }
+            },
         ]
 
     },
