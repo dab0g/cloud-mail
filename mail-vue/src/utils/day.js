@@ -1,12 +1,13 @@
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
+import 'dayjs/locale/ru'
 import utc from 'dayjs/plugin/utc'
 import timezone from 'dayjs/plugin/timezone'
 import {useSettingStore} from "@/store/setting.js";
 const settingStore = useSettingStore();
 dayjs.extend(utc)
 dayjs.extend(timezone)
-dayjs.locale(settingStore.lang === 'en' ? 'en' : 'zh-cn')
+dayjs.locale(settingStore.lang === 'zh' ? 'zh-cn' : settingStore.lang === 'ru' ? 'ru' : 'en')
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export function fromNow(date) {
@@ -33,6 +34,17 @@ export function fromNow(date) {
             ? d.format('MMM D')
             : d.format('YYYY/MM/DD');
 
+
+    } else if (settingStore.lang === 'ru') {
+
+        if (isToday) {
+            if (diffSeconds < 60) return 'только что';
+            if (diffMinutes < 60) return `${diffMinutes} мин. назад`;
+            if (diffHours < 2) return `${diffHours} ч. назад`;
+            return d.format('HH:mm');
+        }
+        if (now.subtract(1, 'day').isSame(d, 'day')) return `вчера ${d.format('HH:mm')}`;
+        return d.year() === now.year() ? d.format('D MMM') : d.format('DD.MM.YYYY');
 
     } else {
 
@@ -75,6 +87,8 @@ export function formatDetailDate(time) {
         return isSameYear
             ? d.format('ddd, MMM D, h:mm A')
             : d.format('ddd, MMM D, YYYY, h:mm A');
+    } else if (settingStore.lang === 'ru') {
+        return isSameYear ? d.locale('ru').format('ddd, D MMM, HH:mm') : d.locale('ru').format('ddd, D MMM YYYY, HH:mm');
     } else {
         return d.format('YYYY年M月D日 ddd AH:mm');
     }

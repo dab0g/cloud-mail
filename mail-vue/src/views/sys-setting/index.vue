@@ -258,7 +258,7 @@
                 </div>
               </div>
               <div class="setting-item">
-                <div><span>Telegram forum routing & spam</span></div>
+                <div><span>{{ $t('forumRouting') }}</span></div>
                 <div class="forward"><ForumRoutingSettings /></div>
               </div>
               <div class="setting-item">

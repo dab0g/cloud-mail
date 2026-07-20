@@ -336,7 +336,9 @@ const en = {
     searchUser: 'Search by user',
     searchEmail: 'Search by Email',
     searchSender: 'Search by Sender',
-    userEmail: 'Email Address'
+    userEmail: 'Email Address',
+    type: 'Type', value: 'Value', email: 'Email', spam: 'Spam',
+    forumRouting: 'Telegram forum routing and spam', configure: 'Configure', forumSecurityInfo: 'IDs and routes are stored only in the protected application database. The Cloudflare Analytics token is a Worker secret and is never entered here.', forumGroup: 'Forum group', forumChatId: 'Forum chat ID (-100...)', defaultNormalTopic: 'Default normal topic ID', defaultSpamTopic: 'Default spam topic ID', forumEnabled: 'Enabled', saveForum: 'Save forum', sendTopicTest: 'Send test to normal topic', forumSaved: 'Forum configuration saved', topicTestSent: 'Test message sent', recipientRoutes: 'Recipient routes', recipientEmail: 'Recipient', normalTopic: 'Normal topic', spamTopic: 'Spam topic', addOrUpdate: 'Add / update', cloudflareZones: 'Cloudflare zones', zoneId: 'Cloudflare Zone ID', globalSpamPolicy: 'Global spam policy', spamScoring: 'Use spam scoring', cloudflareSpamAlways: 'Cloudflare isSpam always spam', threshold: 'Threshold', spfSoftfail: 'SPF softfail', spfNone: 'SPF none', spfFail: 'SPF fail', dkimNone: 'DKIM none', dkimFail: 'DKIM fail', dmarcNone: 'DMARC none', dmarcFail: 'DMARC fail', saveSpamPolicy: 'Save spam policy', spamPolicySaved: 'Spam policy saved', senderOverrides: 'Sender overrides', forceSpam: 'Force spam', forceNormal: 'Force normal', telegramStatus: 'Telegram'
 }
 
 export default en

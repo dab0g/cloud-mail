@@ -29,7 +29,7 @@
         <el-menu-item @click="router.push({name: 'spam'})" index="spam"
                       :class="route.meta.name === 'spam' ? 'choose-item' : ''">
           <Icon icon="material-symbols:report-outline" width="20" height="20" />
-          <span class="menu-name" style="margin-left: 21px">Spam</span>
+          <span class="menu-name" style="margin-left: 21px">{{$t('spam')}}</span>
         </el-menu-item>
         <el-menu-item @click="router.push({name: 'setting'})" index="setting"
                       :class="route.meta.name === 'setting' ? 'choose-item' : ''">

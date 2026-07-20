@@ -63,6 +63,10 @@ const language = computed(() => {
     return 'zh_CN'
   }
 
+  if (locale.value === 'ru') {
+    return 'ru'
+  }
+
   return 'en'
 })
 
