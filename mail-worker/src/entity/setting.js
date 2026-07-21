@@ -61,6 +61,10 @@ export const setting = sqliteTable('setting', {
 	spamDkimNone: integer('spam_dkim_none').default(2).notNull(),
 	spamDkimFail: integer('spam_dkim_fail').default(4).notNull(),
 	spamDmarcNone: integer('spam_dmarc_none').default(2).notNull(),
-	spamDmarcFail: integer('spam_dmarc_fail').default(4).notNull()
+	spamDmarcFail: integer('spam_dmarc_fail').default(4).notNull(),
+	spamFinalOnly: integer('spam_final_only').default(1).notNull(),
+	spamIgnoreNonfinalNone: integer('spam_ignore_nonfinal_none').default(1).notNull(),
+	spamMinSignals: integer('spam_min_signals').default(1).notNull(),
+	spamAuthWeights: text('spam_auth_weights').default('').notNull()
 });
 export default setting

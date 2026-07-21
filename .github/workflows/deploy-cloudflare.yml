@@ -260,21 +260,21 @@ jobs:
             exit 1
           fi
           
-          EXPECTED_RESPONSE="success:v3.1"
+          EXPECTED_RESPONSE="success:v3.2"
           for ATTEMPT in {1..12}; do
             HTTP_CODE=$(curl -sL -w "%{http_code}" -o response.txt "$WORKER_URL/api/init/${JWT_SECRET}" || true)
             RESPONSE_BODY=$(cat response.txt 2>/dev/null || true)
 
             if [ "$HTTP_CODE" = "200" ] && [ "$RESPONSE_BODY" = "$EXPECTED_RESPONSE" ]; then
-              echo "✅ Database schema v3.1 initialized."
+              echo "✅ Database schema v3.2 initialized."
               exit 0
             fi
 
-            echo "⏳ Schema v3.1 is not available yet (attempt $ATTEMPT/12; HTTP: $HTTP_CODE, Response: $RESPONSE_BODY)."
+            echo "⏳ Schema v3.2 is not available yet (attempt $ATTEMPT/12; HTTP: $HTTP_CODE, Response: $RESPONSE_BODY)."
             sleep 15
           done
 
-          echo "❌ Database initialization did not reach schema v3.1."
+          echo "❌ Database initialization did not reach schema v3.2."
           exit 1
 
       - name: 🗑️ 删除运行记录 / Delete workflow runs

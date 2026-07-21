@@ -30,8 +30,9 @@ const dbInit = {
 		await this.v2_9DB(c);
 		await this.v3_0DB(c);
 		await this.v3_1DB(c);
+		await this.v3_2DB(c);
 		await settingService.refresh(c);
-		return c.text('success:v3.1');
+		return c.text('success:v3.2');
 	},
 
 	async v3_0DB(c) {
@@ -110,6 +111,19 @@ const dbInit = {
 			)`),
 			c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_spam_classification_state ON email_spam_classification(state, created_at)`)
 		]);
+	},
+
+	async v3_2DB(c) {
+		const columnSql = [
+			`ALTER TABLE setting ADD COLUMN spam_final_only INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN spam_ignore_nonfinal_none INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN spam_min_signals INTEGER NOT NULL DEFAULT 1;`,
+			`ALTER TABLE setting ADD COLUMN spam_auth_weights TEXT NOT NULL DEFAULT '';`,
+			`ALTER TABLE email_spam_classification ADD COLUMN cloudflare_is_last_event INTEGER NOT NULL DEFAULT 0;`
+		];
+		for (const statement of columnSql) {
+			try { await c.env.db.prepare(statement).run(); } catch (e) { console.warn(`skip spam v3.2 column: ${e.message}`); }
+		}
 	},
 
 	async v2_9DB(c) {
