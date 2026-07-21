@@ -56,7 +56,9 @@ const telegramService = {
 			[
 				{
 					text: 'View',
-					web_app: { url: webAppUrl }
+					// web_app buttons are only valid in private chats with a bot.
+					// URL buttons work in forum supergroups as well.
+					url: webAppUrl
 				}
 			]
 		];
@@ -101,7 +103,8 @@ const telegramService = {
 		if (!tgBotToken) throw new Error('Telegram bot token is not configured');
 		const jwtToken = await jwtUtils.generateToken(c, { emailId: email.emailId || email.email_id });
 		const webAppUrl = customDomain ? `${domainUtils.toOssDomain(customDomain)}/api/telegram/getEmail/${jwtToken}` : 'https://www.cloudflare.com/404';
-		const inlineKeyboard = [[{ text: 'View', web_app: { url: webAppUrl } }]];
+		// Telegram rejects web_app buttons in group/forum topics (BUTTON_TYPE_INVALID).
+		const inlineKeyboard = [[{ text: 'View', url: webAppUrl }]];
 		if (email.code) inlineKeyboard.push([{ text: email.code, copy_text: { text: email.code } }]);
 		let text = emailMsgTemplate(email, tgMsgTo, tgMsgFrom, tgMsgText);
 		if (classification.isSpam) {
