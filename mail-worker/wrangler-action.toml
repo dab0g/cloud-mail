@@ -34,6 +34,14 @@ run_worker_first = true
 [triggers]
 crons = ["*/1 * * * *", "0 16 * * *"]
 
+[[durable_objects.bindings]]
+name = "SPAM_RECHECK"
+class_name = "SpamRecheck"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SpamRecheck"]
+
 
 [vars]
 ai_model = "${AI_MODEL}"

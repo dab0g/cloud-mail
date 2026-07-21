@@ -148,7 +148,15 @@ export async function email(message, env, ctx) {
 
 		emailRow = await emailService.completeReceive({ env }, account ? emailConst.status.RECEIVE : emailConst.status.NOONE, emailRow.emailId);
 		const forumEnabled = await forumService.isEnabled({ env });
-		if (forumEnabled) await spamService.createPending({ env }, emailRow.emailId);
+		if (forumEnabled) {
+			await spamService.createPending({ env }, emailRow.emailId);
+			try {
+				await spamService.scheduleFastRecheck({ env }, emailRow.emailId);
+			} catch (error) {
+				// The minute cron remains the fallback if a Durable Object alarm cannot be created.
+				console.error('Telegram spam fast recheck scheduling failed', emailRow.emailId, error.message);
+			}
+		}
 
 		const legacyForwardAllowed = ruleType !== settingConst.ruleType.RULE || ruleEmail.split(',').includes(message.to);
 

@@ -7,6 +7,9 @@ import kvObjService from './service/kv-obj-service';
 import oauthService from "./service/oauth-service";
 import analysisService from './service/analysis-service';
 import spamService from './service/spam-service';
+import { SpamRecheck } from './durable-objects/spam-recheck';
+
+export { SpamRecheck };
 export default {
 	 async fetch(req, env, ctx) {
 

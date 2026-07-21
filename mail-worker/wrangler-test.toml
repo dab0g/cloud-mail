@@ -32,6 +32,14 @@ run_worker_first = true
 [triggers]
 crons = ["0 16 * * *"]	#每天晚上12点执行每日任务,刷新分析缓存
 
+[[durable_objects.bindings]]
+name = "SPAM_RECHECK"
+class_name = "SpamRecheck"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["SpamRecheck"]
+
 
 [vars]
 ai_model = ""			#ai模型,不填默认使用@cf/meta/llama-3.1-8b-instruct

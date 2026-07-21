@@ -77,6 +77,12 @@ const spamService = {
 			.bind(emailId).run();
 	},
 
+	async scheduleFastRecheck(c, emailId) {
+		if (!c.env.SPAM_RECHECK) return;
+		const id = c.env.SPAM_RECHECK.idFromName(`email:${emailId}`);
+		await c.env.SPAM_RECHECK.get(id).fetch(`https://spam-recheck/schedule?emailId=${encodeURIComponent(emailId)}`, { method: 'POST' });
+	},
+
 	async policy(c, sender, event) {
 		const settings = await settingService.query(c);
 		const rules = await c.env.db.prepare('SELECT * FROM spam_sender_rule WHERE enabled = 1').all().then(r => r.results);
@@ -94,8 +100,10 @@ const spamService = {
 		return payload.data?.viewer?.zones?.[0]?.emailRoutingAdaptive || [];
 	},
 
-	async pending(c) {
-		return c.env.db.prepare(`SELECT e.*, s.state AS spam_state, s.provisional AS spam_provisional, s.created_at AS classification_created_at, s.cloudflare_event_at, s.cloudflare_is_last_event FROM email e JOIN email_spam_classification s ON s.email_id = e.email_id WHERE s.state IN ('pending', 'provisional_normal', 'classified') AND datetime(s.created_at) >= datetime('now', '-24 hours') ORDER BY e.email_id LIMIT 200`).all().then(r => r.results);
+	async pending(c, emailId = null) {
+		const baseSql = `SELECT e.*, s.state AS spam_state, s.provisional AS spam_provisional, s.created_at AS classification_created_at, s.cloudflare_event_at, s.cloudflare_is_last_event FROM email e JOIN email_spam_classification s ON s.email_id = e.email_id WHERE s.state IN ('pending', 'provisional_normal', 'classified') AND datetime(s.created_at) >= datetime('now', '-24 hours')`;
+		const query = emailId ? c.env.db.prepare(`${baseSql} AND e.email_id = ? ORDER BY e.email_id LIMIT 1`).bind(emailId) : c.env.db.prepare(`${baseSql} ORDER BY e.email_id LIMIT 200`);
+		return query.all().then(r => r.results);
 	},
 
 	async recordClassification(c, emailRow, decision, event, provisional = false) {
@@ -161,9 +169,7 @@ const spamService = {
 		await this.deleteDelivery(c, await this.activeDelivery(c, emailRow.email_id, opposite));
 	},
 
-	async process(c) {
-		if (!await forumService.isEnabled(c)) return;
-		const rows = await this.pending(c);
+	async processRows(c, rows) {
 		if (!rows.length) return;
 		const zones = await forumService.listZones(c);
 		const eventsByMessageId = new Map();
@@ -206,6 +212,16 @@ const spamService = {
 				console.error('Telegram spam delivery failed', row.email_id, error.message);
 			}
 		}
+	},
+
+	async processEmail(c, emailId) {
+		if (!await forumService.isEnabled(c)) return;
+		await this.processRows(c, await this.pending(c, emailId));
+	},
+
+	async process(c) {
+		if (!await forumService.isEnabled(c)) return;
+		await this.processRows(c, await this.pending(c));
 	}
 };
 
