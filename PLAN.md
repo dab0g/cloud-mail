@@ -20,8 +20,8 @@
 ## Delayed classification flow
 
 1. Save the incoming message and attachments normally, then add a pending classification when forum mode is active. Send a temporary Telegram message to the recipient's spam topic immediately; it says that Cloudflare verification is pending. Webmail Inbox remains unchanged.
-2. Schedule a per-email Durable Object Alarm for 20 seconds later. The alarm performs the first targeted GraphQL check without keeping a Worker process asleep; failure to schedule it falls back safely to cron.
-3. A Workers Cron Trigger runs every minute. It queries Zone-scoped `emailRoutingAdaptive` data through the Cloudflare GraphQL API and matches normalized Message-IDs. It is both the fallback for the fast check and the reconciler for late events.
+2. Schedule a per-email Durable Object Alarm for 20 seconds later. It repeats the targeted GraphQL check every 20 seconds until a final event arrives or five minutes elapse, without keeping a Worker process asleep; failure to schedule it falls back safely to cron.
+3. A Workers Cron Trigger runs every minute. It queries Zone-scoped `emailRoutingAdaptive` data through the Cloudflare GraphQL API and matches normalized Message-IDs. It is the fallback for the fast check and the reconciler for late events.
 4. If an event exists, calculate policy and reconcile the Telegram topics. A normal decision sends to the normal topic and deletes the temporary spam message. A spam decision replaces the temporary message with the final spam notification. Delivery rows prevent duplicate alarm/cron work.
 5. If no event appears by five minutes, send to the normal topic and mark it `provisional_normal`.
 6. Keep checking provisional mail for 24 hours. A late spam decision sends a new spam-topic message and then removes the old normal-topic message. Telegram cannot move a message across topics; a failed delete is retained as `delete_failed` rather than hiding the inconsistency.

@@ -19,6 +19,15 @@ function ageMs(row) {
 function domainOf(address) { return String(address || '').split('@').pop().toLowerCase(); }
 function messageId(value) { return String(value || '').trim().replace(/^<|>$/g, '').toLowerCase(); }
 function isFinal(event) { return Number(event?.isLastEvent) === 1; }
+export function normalizeDeliveryEmail(emailRow) {
+	return {
+		...emailRow,
+		email_id: emailRow.email_id ?? emailRow.emailId,
+		to_email: emailRow.to_email ?? emailRow.toEmail,
+		send_email: emailRow.send_email ?? emailRow.sendEmail,
+		to_name: emailRow.to_name ?? emailRow.toName
+	};
+}
 function eventIsNewer(row, event) {
 	if (!row.cloudflare_event_at) return true;
 	const eventTime = new Date(event.datetime).getTime();
@@ -111,6 +120,11 @@ const spamService = {
 		return query.all().then(r => r.results);
 	},
 
+	async isPending(c, emailId) {
+		const row = await c.env.db.prepare(`SELECT state FROM email_spam_classification WHERE email_id = ?`).bind(emailId).first();
+		return row?.state === 'pending';
+	},
+
 	async recordClassification(c, emailRow, decision, event, provisional = false) {
 		await c.env.db.prepare(`UPDATE email_spam_classification SET state = ?, is_spam = ?, provisional = ?, score = ?, reasons = ?, spf = COALESCE(?, spf), dkim = COALESCE(?, dkim), dmarc = COALESCE(?, dmarc), cloudflare_is_spam = COALESCE(?, cloudflare_is_spam), cloudflare_is_last_event = COALESCE(?, cloudflare_is_last_event), cloudflare_event_at = COALESCE(?, cloudflare_event_at), classified_at = CURRENT_TIMESTAMP, next_retry_at = CURRENT_TIMESTAMP WHERE email_id = ?`)
 			.bind(provisional ? 'provisional_normal' : 'classified', decision.isSpam, provisional ? 1 : 0, decision.score, JSON.stringify(decision.reasons), event?.spf || null, event?.dkim || null, event?.dmarc || null, event ? Number(event.isSpam || 0) : null, event ? Number(isFinal(event)) : null, event?.datetime || null, emailRow.email_id).run();
@@ -127,9 +141,11 @@ const spamService = {
 	},
 
 	async deliver(c, emailRow, decision, classification, kind) {
-		const destination = await forumService.destination(c, emailRow.to_email, kind === 'spam');
+		const normalizedEmail = normalizeDeliveryEmail(emailRow);
+		if (!normalizedEmail.email_id || !normalizedEmail.to_email) throw new Error('Email delivery record is incomplete');
+		const destination = await forumService.destination(c, normalizedEmail.to_email, kind === 'spam');
 		if (!destination) throw new Error('Telegram forum routing is not fully configured');
-		let delivery = await this.activeDelivery(c, emailRow.email_id, kind);
+		let delivery = await this.activeDelivery(c, normalizedEmail.email_id, kind);
 		if (delivery?.state === 'sent' || delivery?.state === 'delete_failed') return;
 		if (delivery?.state === 'sending') return;
 		if (delivery) {
@@ -137,11 +153,11 @@ const spamService = {
 				.bind(destination.chatId, destination.threadId, delivery.delivery_id).run();
 		} else {
 			const claim = await c.env.db.prepare(`INSERT OR IGNORE INTO telegram_delivery (email_id, kind, chat_id, thread_id, state) VALUES (?, ?, ?, ?, 'sending')`)
-				.bind(emailRow.email_id, kind, destination.chatId, destination.threadId).run();
+				.bind(normalizedEmail.email_id, kind, destination.chatId, destination.threadId).run();
 			if (!claim.meta.changes) return;
-			delivery = await this.activeDelivery(c, emailRow.email_id, kind);
+			delivery = await this.activeDelivery(c, normalizedEmail.email_id, kind);
 		}
-		const telegramEmail = { ...emailRow, emailId: emailRow.email_id, toEmail: emailRow.to_email, sendEmail: emailRow.send_email, toName: emailRow.to_name };
+		const telegramEmail = { ...normalizedEmail, emailId: normalizedEmail.email_id, toEmail: normalizedEmail.to_email, sendEmail: normalizedEmail.send_email, toName: normalizedEmail.to_name };
 		try {
 			const result = await telegramService.sendEmailToForum(c, telegramEmail, destination, classification);
 			await c.env.db.prepare(`UPDATE telegram_delivery SET telegram_message_id = ?, state = 'sent' WHERE delivery_id = ?`)
