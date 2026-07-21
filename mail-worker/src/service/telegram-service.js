@@ -107,7 +107,9 @@ const telegramService = {
 		const inlineKeyboard = [[{ text: 'View', url: webAppUrl }]];
 		if (email.code) inlineKeyboard.push([{ text: email.code, copy_text: { text: email.code } }]);
 		let text = emailMsgTemplate(email, tgMsgTo, tgMsgFrom, tgMsgText);
-		if (classification.isSpam) {
+		if (classification.pending) {
+			text = `⏳ <b>Проверка Cloudflare</b>\n${text}\n\nОжидается финальный статус SPF/DKIM/DMARC.`.slice(0, 4096);
+		} else if (classification.isSpam) {
 			const event = classification.event || {};
 			text = `⚠️ <b>SPAM</b> (score: ${classification.score || 0})\n${text}\n\nSPF: ${event.spf || 'unknown'} | DKIM: ${event.dkim || 'unknown'} | DMARC: ${event.dmarc || 'unknown'}\n${(classification.reasons || []).join(', ')}`.slice(0, 4096);
 		}

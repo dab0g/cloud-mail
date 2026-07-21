@@ -151,6 +151,12 @@ export async function email(message, env, ctx) {
 		if (forumEnabled) {
 			await spamService.createPending({ env }, emailRow.emailId);
 			try {
+				await spamService.deliverPendingSpam({ env }, emailRow);
+			} catch (error) {
+				// Retry via the Durable Object alarm and the minute cron without failing email receipt.
+				console.error('Telegram pending spam delivery failed', emailRow.emailId, error.message);
+			}
+			try {
 				await spamService.scheduleFastRecheck({ env }, emailRow.emailId);
 			} catch (error) {
 				// The minute cron remains the fallback if a Durable Object alarm cannot be created.

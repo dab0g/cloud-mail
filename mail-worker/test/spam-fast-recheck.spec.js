@@ -15,4 +15,33 @@ describe('fast spam recheck scheduling', () => {
 	it('does nothing when the Durable Object binding is absent', async () => {
 		await expect(spamService.scheduleFastRecheck({ env: {} }, 42)).resolves.toBeUndefined();
 	});
+
+	it('sends a temporary pending notification to the spam topic', async () => {
+		const deliver = vi.fn();
+		await spamService.deliverPendingSpam.call({ deliver }, { env: {} }, { email_id: 42 });
+		expect(deliver).toHaveBeenCalledWith(
+			{ env: {} },
+			{ email_id: 42 },
+			{ isSpam: 1, score: 0, reasons: ['cloudflare:pending'] },
+			{ isSpam: 1, score: 0, reasons: ['cloudflare:pending'], pending: true },
+			'spam'
+		);
+	});
+
+	it('moves a temporary spam notification to normal after a normal decision', async () => {
+		const temporarySpam = { state: 'sent', telegram_message_id: 77 };
+		const service = { activeDelivery: vi.fn(async (_, __, kind) => kind === 'spam' ? temporarySpam : null), deliver: vi.fn(), deleteDelivery: vi.fn() };
+		await spamService.reconcileDelivery.call(service, { env: {} }, { email_id: 42 }, { isSpam: 0 }, { score: 0 });
+		expect(service.deliver).toHaveBeenCalledWith({ env: {} }, { email_id: 42 }, { isSpam: 0 }, { score: 0 }, 'normal');
+		expect(service.activeDelivery).toHaveBeenCalledWith({ env: {} }, 42, 'spam');
+		expect(service.deleteDelivery).toHaveBeenCalledWith({ env: {} }, temporarySpam);
+	});
+
+	it('replaces a temporary spam notification with the final spam notification', async () => {
+		const temporarySpam = { state: 'sent', telegram_message_id: 77 };
+		const service = { activeDelivery: vi.fn(async (_, __, kind) => kind === 'spam' ? temporarySpam : null), deliver: vi.fn(), deleteDelivery: vi.fn() };
+		await spamService.reconcileDelivery.call(service, { env: {} }, { email_id: 42 }, { isSpam: 1 }, { score: 6 }, true);
+		expect(service.deleteDelivery).toHaveBeenCalledWith({ env: {} }, temporarySpam);
+		expect(service.deliver).toHaveBeenCalledWith({ env: {} }, { email_id: 42 }, { isSpam: 1 }, { score: 6 }, 'spam');
+	});
 });

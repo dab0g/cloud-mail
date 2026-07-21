@@ -83,6 +83,11 @@ const spamService = {
 		await c.env.SPAM_RECHECK.get(id).fetch(`https://spam-recheck/schedule?emailId=${encodeURIComponent(emailId)}`, { method: 'POST' });
 	},
 
+	async deliverPendingSpam(c, emailRow) {
+		const decision = { isSpam: 1, score: 0, reasons: ['cloudflare:pending'] };
+		await this.deliver(c, emailRow, decision, { ...decision, pending: true }, 'spam');
+	},
+
 	async policy(c, sender, event) {
 		const settings = await settingService.query(c);
 		const rules = await c.env.db.prepare('SELECT * FROM spam_sender_rule WHERE enabled = 1').all().then(r => r.results);
@@ -162,9 +167,10 @@ const spamService = {
 		}
 	},
 
-	async reconcileDelivery(c, emailRow, decision, classification) {
+	async reconcileDelivery(c, emailRow, decision, classification, replacePendingSpam = false) {
 		const desired = decision.isSpam ? 'spam' : 'normal';
 		const opposite = decision.isSpam ? 'normal' : 'spam';
+		if (desired === 'spam' && replacePendingSpam) await this.deleteDelivery(c, await this.activeDelivery(c, emailRow.email_id, 'spam'));
 		await this.deliver(c, emailRow, decision, classification, desired);
 		await this.deleteDelivery(c, await this.activeDelivery(c, emailRow.email_id, opposite));
 	},
@@ -185,6 +191,7 @@ const spamService = {
 		}
 		for (const row of rows) {
 			try {
+				if (row.spam_state === 'pending') await this.deliverPendingSpam(c, row);
 				const event = eventsByMessageId.get(messageId(row.message_id));
 				if (event && eventIsNewer(row, event)) {
 					const settings = await settingService.query(c);
@@ -196,7 +203,7 @@ const spamService = {
 						const wasProvisionalNormal = row.spam_state === 'provisional_normal';
 						await this.recordClassification(c, row, decision, event);
 						if (wasProvisionalNormal && decision.isSpam) await this.relocateToSpam(c, row, decision, classification);
-						else await this.reconcileDelivery(c, row, decision, classification);
+						else await this.reconcileDelivery(c, row, decision, classification, row.spam_state === 'pending' && Boolean(decision.isSpam));
 						continue;
 					}
 				}
@@ -204,7 +211,7 @@ const spamService = {
 					const decision = { isSpam: 0, score: 0, reasons: ['cloudflare-log-missing-after-5m'] };
 					const classification = { ...decision, event: null, provisional: true };
 					await this.recordClassification(c, row, decision, null, true);
-					await this.deliver(c, row, decision, classification, 'normal');
+					await this.reconcileDelivery(c, row, decision, classification);
 				}
 			} catch (error) {
 				// Keep the classification retryable after a transient Telegram failure.
